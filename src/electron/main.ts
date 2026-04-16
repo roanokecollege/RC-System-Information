@@ -1,15 +1,86 @@
-import { app, BrowserWindow } from "electron";
+import { app, BrowserWindow, Tray, Menu, nativeImage } from "electron";
+import path from "path";
+
 import { isDev, ipcMainHandle } from "./util.js";
-import { getStaticData, pullResources, sendReportToApi } from "./resourceManager.js";
+import {
+  getStaticData,
+  pullResources,
+  sendReportToApi,
+} from "./resourceManager.js";
 import { getPreloadPath, getUIPath } from "./pathResolver.js";
 
+let mainWindow: BrowserWindow | null = null;
+let tray: Tray | null = null;
+
+/* =========================
+   TRAY SETUP
+========================= */
+function createTray() {
+  const iconPath = app.isPackaged
+    ? path.join(process.resourcesPath, "assets", "Tray_Icon_16.png")
+    : path.join(app.getAppPath(), "assets", "Tray_Icon_16.png");
+
+  const icon = nativeImage.createFromPath(iconPath);
+
+  // Debug guard (VERY important for packaged apps)
+  if (icon.isEmpty()) {
+    console.error("❌ Tray icon failed to load:", iconPath);
+  }
+
+  // macOS requirement (safe for Windows too)
+  icon.setTemplateImage(true);
+
+  tray = new Tray(icon);
+
+  const contextMenu = Menu.buildFromTemplate([
+    {
+      label: "Show App",
+      click: () => {
+        if (!mainWindow) return;
+        mainWindow.show();
+        mainWindow.focus();
+      },
+    },
+    {
+      label: "Hide App",
+      click: () => {
+        mainWindow?.hide();
+      },
+    },
+    { type: "separator" },
+    {
+      label: "Quit",
+      click: () => {
+        app.quit();
+      },
+    },
+  ]);
+
+  tray.setToolTip("RC System Dashboard");
+  tray.setContextMenu(contextMenu);
+
+  tray.on("click", () => {
+    if (!mainWindow) return;
+
+    if (mainWindow.isVisible()) {
+      mainWindow.hide();
+    } else {
+      mainWindow.show();
+      mainWindow.focus();
+    }
+  });
+}
+
+/* =========================
+   APP READY
+========================= */
 app.on("ready", () => {
-  const mainWindow = new BrowserWindow({
+  mainWindow = new BrowserWindow({
     title: "RC System Dashboard",
     webPreferences: {
-      preload: getPreloadPath(),
-      // contextIsolation is ON by default in modern Electron — do not disable it.
-      // nodeIntegration is OFF by default — do not enable it.
+      preload: app.isPackaged
+        ? path.join(process.resourcesPath, "dist-electron", "preload.cjs")
+        : getPreloadPath(),
     },
   });
 
@@ -21,23 +92,41 @@ app.on("ready", () => {
 
   pullResources(mainWindow);
 
+  createTray();
+
+  /* =========================
+     IPC
+  ========================= */
   ipcMainHandle("getStaticData", () => {
     return getStaticData();
   });
 
+  ipcMainHandle<"sendToIT", SendToITPayload>(
+    "sendToIT",
+    async (_event, { data, stats }) => {
+      try {
+        await sendReportToApi(data, stats);
+        return { success: true };
+      } catch (err) {
+        console.error("Failed to send report to API:", err);
+        return { success: false, error: String(err) };
+      }
+    },
+  );
+
   /* =========================
-     SEND TO IT — API RELAY
-     required the user to be logged into Outlook. The report is now sent
-     directly from the main process via an authenticated POST to your
-     internal email relay API.
+     WINDOW BEHAVIOR
   ========================= */
-  ipcMainHandle<"sendToIT", SendToITPayload>("sendToIT", async (_event, { data, stats }) => {
-    try {
-      await sendReportToApi(data, stats);
-      return { success: true };
-    } catch (err) {
-      console.error("Failed to send report to API:", err);
-      return { success: false, error: String(err) };
-    }
+
+  mainWindow.on("close", (event) => {
+    event.preventDefault();
+    mainWindow?.hide();
   });
+});
+
+/* =========================
+   CLEAN EXIT
+========================= */
+app.on("before-quit", () => {
+  tray?.destroy();
 });

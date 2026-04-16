@@ -43,7 +43,7 @@ export function pullResources(mainWindow: BrowserWindow) {
     ]);
 
     const cpuUsage = cpu.currentLoad / 100;
-    const ramUsage = mem.used / mem.total;
+    const ramUsage = (mem.total - mem.available) / mem.total;
 
     const disk = fsData[0];
     const storageUsage = disk ? disk.use / 100 : 0;

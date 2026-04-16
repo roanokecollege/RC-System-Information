@@ -1,16 +1,53 @@
 {
   "appId": "com.h-hlioui.rc-system-info",
-  "files": ["dist-electron", "dist-react"],
-  "icon": "./RCLogo.png",
-  "extraResources": ["dist-electron/preload.cjs"],
+  "productName": "RC System Information",
+
+  "files": ["dist-electron/**/*", "dist-react/**/*"],
+
+  "icon": "./src/ui/assets/RCLogo.png",
+
+  "extraResources": [
+    {
+      "from": "src/ui/assets",
+      "to": "assets"
+    },
+    {
+      "from": "dist-electron",
+      "to": "dist-electron"
+    }
+  ],
+
+  "afterPack": "./scripts/afterPack.cjs",
+
   "mac": {
-    "target": "dmg"
+    "target": "dmg",
+    "identity": null,
+    "category": "public.app-category.utilities",
+    "darkModeSupport": true,
+    "gatekeeperAssess": false,
+    "hardenedRuntime": false,
+    "timestamp": false
   },
-  "linux": {
-    "target": "AppImage",
-    "category": "Utility"
-  },
+
   "win": {
-    "target": ["portable", "msi"]
+    "target": ["nsis", "portable"],
+    "icon": "./src/ui/assets/RCLogo.png"
+  },
+
+  "linux": {
+    "target": ["AppImage"],
+    "category": "Utility",
+    "icon": "./src/ui/assets/RCLogo.png"
+  },
+
+  "compression": "maximum",
+
+  "asar": true,
+
+  "asarUnpack": ["**/*.node"],
+
+  "directories": {
+    "output": "release",
+    "buildResources": "build"
   }
 }

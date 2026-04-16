@@ -14,9 +14,11 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "transpile:electron": "tsc --project src/electron/tsconfig.json",
-    "dist:mac": "npm run transpile:electron && npm run build && electron-builder --mac --arm64",
+    "dist:mac": "npm run clean && npm run transpile:electron && npm run build && electron-builder --mac --arm64",
+    "clean": "rm -rf dist dist-react",
     "dist:win": "npm run transpile:electron && npm run build && electron-builder --win --x64",
     "dist:linux": "npm run transpile:electron && npm run build && electron-builder --linux --x64",
+    "predist:mac": "xattr -cr ~/Library/Caches/electron/ && xattr -cr ~/Library/Caches/electron-builder/",
     "postinstall": "electron-builder install-app-deps && (xattr -cr node_modules || true)"
   },
   "dependencies": {
