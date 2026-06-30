@@ -1,4 +1,4 @@
-# RC System Information - Windows Build Setup
+# RC System Dashboard - Windows Build Setup
 
 $ErrorActionPreference = "Stop"
 
@@ -7,7 +7,7 @@ $ProjectRoot = $PWD.Path
 
 Write-Host ""
 Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "  RC System Information - Windows Build" -ForegroundColor Cyan
+Write-Host "  RC System Dashboard - Windows Build" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "Project root: $ProjectRoot" -ForegroundColor DarkGray
 Write-Host ""
@@ -64,6 +64,11 @@ Write-Host "Dependencies installed." -ForegroundColor Green
 # ── 4. Build ──────────────────────────────────────────────────
 Write-Host ""
 Write-Host "Building Windows app..." -ForegroundColor Yellow
+
+# Skip code signing — no certificate configured
+$env:CSC_IDENTITY_AUTO_DISCOVERY = "false"
+$env:WIN_CSC_LINK = ""
+
 npm run dist:win
 if ($LASTEXITCODE -ne 0) {
     Write-Host "Build failed with exit code $LASTEXITCODE" -ForegroundColor Red

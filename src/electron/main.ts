@@ -1,5 +1,8 @@
 import "./load-env.js";
 import { app, BrowserWindow, Tray, Menu, nativeImage, globalShortcut } from "electron";
+
+// Prevents GPU-related crashes on machines with problematic drivers (e.g. AMD)
+app.disableHardwareAcceleration();
 import path from "path";
 
 import { isDev, ipcMainHandle } from "./util.js";
