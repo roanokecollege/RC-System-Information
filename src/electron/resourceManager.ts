@@ -23,9 +23,11 @@ const CONFIG = {
 ========================= */
 
 function validateEnv() {
-  const missing = (["AUTH_TOKEN", "PUBLIC_IP_ENDPOINT", "SEND_REPORT_ENDPOINT"] as const)
-    .filter((k) => !CONFIG[k]);
-  if (missing.length) throw new Error(`Missing env vars: ${missing.join(", ")}`);
+  const missing = (
+    ["AUTH_TOKEN", "PUBLIC_IP_ENDPOINT", "SEND_REPORT_ENDPOINT"] as const
+  ).filter((k) => !CONFIG[k]);
+  if (missing.length)
+    throw new Error(`Missing env vars: ${missing.join(", ")}`);
 }
 
 validateEnv();
@@ -221,7 +223,7 @@ async function getPublicIp(): Promise<string> {
       const res = await net.fetch(ipUrl.toString(), {
         signal: controller.signal,
         headers: {
-          'x-auth-token': CONFIG.AUTH_TOKEN!,
+          "x-auth-token": CONFIG.AUTH_TOKEN!,
         },
       });
 
@@ -378,6 +380,7 @@ export async function sendReportToApi(
         "x-auth-token": CONFIG.AUTH_TOKEN!,
       },
       body: JSON.stringify({
+        subject: `RC System Diagnostic Report - ${data.loggedUser} (${data.computerName})`,
         body: reportText.replace(/\n/g, "<br>"),
         code,
       }),
