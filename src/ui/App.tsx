@@ -11,7 +11,8 @@ type Stats = {
 
 type StaticData = {
   computerName: string;
-  macAddress: string;
+  wifiMac: string;
+  ethernetMac: string;
   localIp: string;
   publicIp: string;
   infoFiles: {
@@ -120,7 +121,8 @@ function App() {
       {/* NETWORK */}
       <section className="card">
         <h2>Network</h2>
-        <Info label="MAC Address" value={data.macAddress} />
+        {data.wifiMac !== "N/A" && <Info label="WiFi MAC" value={data.wifiMac} />}
+        {data.ethernetMac !== "N/A" && <Info label="Ethernet MAC" value={data.ethernetMac} />}
         <Info label="Local IP" value={data.localIp} />
         <Info label="Public IP" value={data.publicIp} />
         <div className="network-speed">

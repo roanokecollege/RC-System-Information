@@ -27,7 +27,8 @@ type StaticData = {
   computerName: string;
   localIp: string;
   publicIp: string;
-  macAddress: string;
+  wifiMac: string;
+  ethernetMac: string;
 
   infoFiles: InfoFilesObject;
 

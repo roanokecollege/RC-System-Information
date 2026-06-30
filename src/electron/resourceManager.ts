@@ -143,7 +143,7 @@ export async function getStaticData(): Promise<StaticData> {
 
   const computerName = os.hostname();
 
-  const { localIp, macAddress, publicIp } = await getFullNetworkData();
+  const { localIp, wifiMac, ethernetMac, publicIp } = await getFullNetworkData();
 
   const infoFiles = getInfoFileData();
 
@@ -157,7 +157,8 @@ export async function getStaticData(): Promise<StaticData> {
     computerName,
     localIp,
     publicIp,
-    macAddress,
+    wifiMac,
+    ethernetMac,
 
     infoFiles,
 
@@ -179,27 +180,37 @@ export async function getStaticData(): Promise<StaticData> {
    NETWORK INFO
 ========================= */
 
-function getNetworkInfo() {
-  const interfaces = os.networkInterfaces();
+async function getNetworkInfo() {
+  const ifaces = await si.networkInterfaces();
+  const list = Array.isArray(ifaces) ? ifaces : [ifaces];
 
-  for (const name of Object.keys(interfaces)) {
-    const netInterface = interfaces[name];
-    if (!netInterface) continue;
+  let wifiMac = "N/A";
+  let ethernetMac = "N/A";
+  let localIp = "N/A";
 
-    for (const net of netInterface) {
-      if (net.family === "IPv4" && !net.internal) {
-        return {
-          localIp: net.address,
-          macAddress: net.mac,
-        };
-      }
+  for (const iface of list) {
+    if (iface.virtual || iface.internal) continue;
+
+    if (iface.type === "wireless" && wifiMac === "N/A") {
+      wifiMac = iface.mac || "N/A";
+      if (localIp === "N/A" && iface.ip4) localIp = iface.ip4;
+    }
+
+    if (iface.type === "wired" && ethernetMac === "N/A") {
+      ethernetMac = iface.mac || "N/A";
+      if (iface.ip4) localIp = iface.ip4; // prefer wired IP
     }
   }
 
-  return {
-    localIp: "N/A",
-    macAddress: "N/A",
-  };
+  // Fallback using os module if si returned nothing useful
+  if (localIp === "N/A") {
+    for (const addrs of Object.values(os.networkInterfaces())) {
+      const match = addrs?.find((a) => a.family === "IPv4" && !a.internal);
+      if (match) { localIp = match.address; break; }
+    }
+  }
+
+  return { wifiMac, ethernetMac, localIp };
 }
 
 /* =========================
@@ -255,10 +266,10 @@ async function getPublicIp(): Promise<string> {
 }
 
 async function getFullNetworkData() {
-  const { localIp, macAddress } = getNetworkInfo();
+  const { localIp, wifiMac, ethernetMac } = await getNetworkInfo();
   const publicIp = await getPublicIp();
 
-  return { localIp, macAddress, publicIp };
+  return { localIp, wifiMac, ethernetMac, publicIp };
 }
 
 /* =========================
@@ -340,7 +351,8 @@ Usage Type:       ${data.infoFiles.usageType}
 Location:         ${data.infoFiles.assignedLocationBuilding} ${data.infoFiles.assignedLocationRoom}
 
 --- NETWORK ---
-MAC Address:      ${data.macAddress}
+WiFi MAC:         ${data.wifiMac}
+Ethernet MAC:     ${data.ethernetMac}
 Local IP:         ${data.localIp}
 Public IP:        ${data.publicIp}
 Network Up:       ${formatNetworkSpeed(stats.netUp)}
