@@ -71,9 +71,27 @@ Write-Host "Dependencies installed." -ForegroundColor Green
 Write-Host ""
 Write-Host "Building Windows app..." -ForegroundColor Yellow
 
-# Skip code signing — no certificate configured
+# Skip code signing — no certificate configured.
+# CSC_IDENTITY_AUTO_DISCOVERY only stops electron-builder from searching the
+# Windows certificate store on its own; it does NOT override an explicit
+# CSC_LINK/WIN_CSC_LINK if one is already set machine-wide (e.g. by IT for
+# something unrelated). An inherited CSC_LINK is what causes signtool to
+# hang on the timestamp-server call, so warn if one is present, then clear
+# all cert env vars before building.
+$inheritedCscVars = @("CSC_LINK", "WIN_CSC_LINK") | Where-Object { Test-Path "Env:$_" }
+if ($inheritedCscVars) {
+    Write-Host ""
+    Write-Host "WARNING: found pre-existing signing env var(s): $($inheritedCscVars -join ', ')" -ForegroundColor Red
+    Write-Host "This project has no code-signing certificate configured, so these will be" -ForegroundColor Red
+    Write-Host "cleared for this build to avoid signtool hanging on a timestamp-server call." -ForegroundColor Red
+    Write-Host "If this machine is meant to sign builds, configure signing in electron-builder.json instead." -ForegroundColor Red
+}
+
 $env:CSC_IDENTITY_AUTO_DISCOVERY = "false"
+$env:CSC_LINK = ""
+$env:CSC_KEY_PASSWORD = ""
 $env:WIN_CSC_LINK = ""
+$env:WIN_CSC_KEY_PASSWORD = ""
 
 npm run dist:win
 if ($LASTEXITCODE -ne 0) {

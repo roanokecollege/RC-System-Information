@@ -109,6 +109,7 @@ function App() {
         <h2>System Info</h2>
 
         <Info label="Computer Name" value={data.computerName} />
+        <Info label="Serial Number" value={data.deviceSerial} />
         <Info label="RC Tag" value={data.infoFiles.rcTag} />
         <Info label="Current User" value={data.loggedUser} />
         <Info label="Local Account" value={data.infoFiles.localAccount} />

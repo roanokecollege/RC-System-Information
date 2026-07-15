@@ -5,7 +5,13 @@ import path from "path";
 import { BrowserWindow, net } from "electron/main";
 import { ipcWebContentsSend } from "./util.js";
 
-const POLLING_INTERVAL = 3000;
+const MIN_POLLING_INTERVAL = 3000;
+const MAX_POLLING_INTERVAL = 15000;
+// Below this load, poll at MIN_POLLING_INTERVAL. Above it, back off linearly
+// up to MAX_POLLING_INTERVAL at LOAD_BACKOFF_CEILING, so the app itself adds
+// less overhead exactly when the machine is already under pressure.
+const LOAD_BACKOFF_FLOOR = 0.6;
+const LOAD_BACKOFF_CEILING = 0.9;
 const STORAGE_POLLING_INTERVAL = 30000;
 
 /* =========================
@@ -63,6 +69,17 @@ function formatUptime(seconds: number): string {
    LIVE RESOURCE LOOP
 ========================= */
 
+// Linearly backs off from MIN_POLLING_INTERVAL to MAX_POLLING_INTERVAL as
+// load rises from LOAD_BACKOFF_FLOOR to LOAD_BACKOFF_CEILING.
+function nextPollingInterval(cpuUsage: number, ramUsage: number): number {
+  const load = Math.max(cpuUsage, ramUsage);
+  if (load <= LOAD_BACKOFF_FLOOR) return MIN_POLLING_INTERVAL;
+  if (load >= LOAD_BACKOFF_CEILING) return MAX_POLLING_INTERVAL;
+
+  const t = (load - LOAD_BACKOFF_FLOOR) / (LOAD_BACKOFF_CEILING - LOAD_BACKOFF_FLOOR);
+  return MIN_POLLING_INTERVAL + t * (MAX_POLLING_INTERVAL - MIN_POLLING_INTERVAL);
+}
+
 export function pullResources(mainWindow: BrowserWindow) {
   let cachedStorageUsage = 0;
 
@@ -73,8 +90,8 @@ export function pullResources(mainWindow: BrowserWindow) {
     cachedStorageUsage = disk ? disk.use / 100 : 0;
   }
 
-  async function poll() {
-    if (mainWindow.isDestroyed()) return;
+  async function poll(): Promise<Statistics | null> {
+    if (mainWindow.isDestroyed()) return null;
 
     const [cpu, mem, net] = await Promise.all([
       si.currentLoad(),
@@ -95,11 +112,8 @@ export function pullResources(mainWindow: BrowserWindow) {
     };
 
     ipcWebContentsSend("statistics", mainWindow.webContents, stats);
+    return stats;
   }
-
-  // Fire immediately so UI doesn't wait for the first interval
-  pollStorage();
-  poll();
 
   const storageInterval = setInterval(() => {
     if (mainWindow.isDestroyed()) {
@@ -109,14 +123,23 @@ export function pullResources(mainWindow: BrowserWindow) {
     pollStorage();
   }, STORAGE_POLLING_INTERVAL);
 
-  const interval = setInterval(() => {
+  async function scheduleNextPoll() {
     if (mainWindow.isDestroyed()) {
-      clearInterval(interval);
       clearInterval(storageInterval);
       return;
     }
-    poll();
-  }, POLLING_INTERVAL);
+
+    const stats = await poll();
+    const delay = stats
+      ? nextPollingInterval(stats.cpuUsage, stats.ramUsage)
+      : MIN_POLLING_INTERVAL;
+
+    setTimeout(scheduleNextPoll, delay);
+  }
+
+  // Fire immediately so UI doesn't wait for the first cycle
+  pollStorage();
+  scheduleNextPoll();
 }
 
 /* =========================
