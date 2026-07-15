@@ -1,5 +1,5 @@
 import "./load-env.js";
-import { app, BrowserWindow, Tray, Menu, nativeImage, globalShortcut, screen } from "electron";
+import { app, BrowserWindow, Tray, Menu, nativeImage, globalShortcut } from "electron";
 import path from "path";
 
 import { isDev, ipcMainHandle } from "./util.js";
@@ -64,17 +64,8 @@ function createTray() {
    APP READY
 ========================= */
 app.on("ready", () => {
-  const { width: screenWidth, height: screenHeight } = screen.getPrimaryDisplay().workAreaSize;
-
-  const MIN_WIDTH = 960;
-  const MIN_HEIGHT = 728;
-
   mainWindow = new BrowserWindow({
     title: "RC System Dashboard",
-    width: Math.max(Math.round(screenWidth / 2), MIN_WIDTH),
-    height: Math.max(Math.round(screenHeight / 2), MIN_HEIGHT),
-    minWidth: MIN_WIDTH,
-    minHeight: MIN_HEIGHT,
     webPreferences: {
       preload: app.isPackaged
         ? path.join(process.resourcesPath, "dist-electron", "preload.cjs")
