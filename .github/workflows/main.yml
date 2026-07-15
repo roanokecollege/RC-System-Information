@@ -1,0 +1,26 @@
+name: Sync Fork
+
+on:
+  schedule:
+    - cron: '10 0/3 * * *' # Runs every 3 hours, at 10 past
+  workflow_dispatch: # Allows you to trigger it manually
+
+jobs:
+  sync:
+    runs-on: blackstone
+    steps:
+      - name: Checkout target repo
+        uses: actions/checkout@v4
+
+      - name: Sync upstream changes
+        id: sync
+        uses: aormsby/Fork-Sync-With-Upstream-action@v3.4.1
+        with:
+          target_sync_branch: main
+          target_repo_token: ${{ secrets.GITHUB_TOKEN }}
+          upstream_sync_branch: main
+          upstream_sync_repo: hamgu1n/RC-System-Dashboard 
+
+      - name: Check for failure
+        if: steps.sync.outputs.has_new_commits == 'false'
+        run: echo "No new commits to sync."
